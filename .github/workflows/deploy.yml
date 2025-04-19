@@ -1,7 +1,7 @@
-# Workflow: Builds, packages, and deploys app
+# Workflow: Builds, packages, and deploys app to AWS ECS
 name: Deploy Application
 
-# Trigger: Runs on app code changes
+# Trigger: Runs on pushes to main branch for frontend or backend changes
 on:
   push:
     branches:
@@ -12,21 +12,21 @@ on:
 
 jobs:
   deploy-app:
-    # Runner: Ubuntu for Docker
+    # Runner: Ubuntu for Docker compatibility
     runs-on: ubuntu-latest
     steps:
-      # Checkout code
+      # Checkout code from repository
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Verify Dockerfiles
+      # Verify Dockerfiles exist
       - name: Check app directories
         run: |
           ls -l frontend/Dockerfile || echo "Error: Frontend Dockerfile not found"
           ls -l backend/Dockerfile || echo "Error: Backend Dockerfile not found"
           if [ ! -f frontend/Dockerfile ] || [ ! -f backend/Dockerfile ]; then exit 1; fi
 
-      # Configure AWS credentials
+      # Configure AWS credentials for ECR and ECS access
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -34,20 +34,35 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: us-east-1
 
-      # Log in to ECR
+      # Log in to Amazon ECR
       - name: Log in to ECR
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
+      # Build backend image (needed for frontend test)
+      - name: Build backend image
+        run: |
+          docker build -t backend-test backend
+          docker images | grep backend-test # Verify image
+          echo "Backend image built for frontend test"
+
       # Package frontend image
       - name: Package frontend image
         run: |
+          # Create Docker network for frontend-backend communication
+          docker network create ecsworkshop-net
+          # Run backend container in network
+          docker run -d --name backend --network ecsworkshop-net backend-test
+          # Build and run frontend image
           docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest frontend
           docker images | grep my-app-repo | grep frontend-latest # Verify image
-          docker run -d -p 8080:80 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest
+          docker run -d -p 8080:80 --name frontend --network ecsworkshop-net ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest
           sleep 5
           curl http://localhost:8080 || echo "Frontend test failed"
-          docker stop $(docker ps -q) # Clean up
+          # Clean up: Stop and remove containers, remove network
+          docker stop frontend backend || true
+          docker rm frontend backend || true
+          docker network rm ecsworkshop-net || true
           echo "Frontend image packaged"
 
       # Package backend image
@@ -55,10 +70,11 @@ jobs:
         run: |
           docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest backend
           docker images | grep my-app-repo | grep backend-latest # Verify image
-          docker run -d -p 3000:3000 ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest
+          docker run -d -p 3000:3000 --name backend ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest
           sleep 5
           curl http://localhost:3000/api/health || echo "Backend test failed"
-          docker stop $(docker ps -q) # Clean up
+          docker stop backend || true
+          docker rm backend || true
           echo "Backend image packaged"
 
       # Push images to ECR
@@ -67,7 +83,7 @@ jobs:
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest
           docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest
 
-      # Update ECS services
+      # Update ECS services to run one task each
       - name: Update ECS services
         run: |
           aws ecs update-service --cluster my-ecs-cluster --service frontend-service --desired-count 1 --region us-east-1
