@@ -1,14 +1,11 @@
-## Workflow: Builds, packages, and deploys app to AWS ECS
+# Workflow: Builds, packages, and deploys app to AWS ECS
 name: Deploy Application
 
-# Trigger: Runs on pushes to main branch for frontend or backend changes
+# Trigger: Runs on any push to main branch
 on:
   push:
     branches:
       - main
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
 
 jobs:
   deploy-app:
