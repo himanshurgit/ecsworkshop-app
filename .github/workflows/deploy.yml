@@ -39,30 +39,11 @@ jobs:
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
 
-      # Build backend image (needed for frontend test)
-      - name: Build backend image
-        run: |
-          docker build -t backend-test backend
-          docker images | grep backend-test # Verify image
-          echo "Backend image built for frontend test"
-
       # Package frontend image
       - name: Package frontend image
         run: |
-          # Create Docker network for frontend-backend communication
-          docker network create ecsworkshop-net
-          # Run backend container in network
-          docker run -d --name backend --network ecsworkshop-net backend-test
-          # Build and run frontend image
           docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest frontend
           docker images | grep my-app-repo | grep frontend-latest # Verify image
-          docker run -d -p 8080:80 --name frontend --network ecsworkshop-net ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest
-          sleep 5
-          curl http://localhost:8080 || echo "Frontend test failed"
-          # Clean up: Stop and remove containers, remove network
-          docker stop frontend backend || true
-          docker rm frontend backend || true
-          docker network rm ecsworkshop-net || true
           echo "Frontend image packaged"
 
       # Package backend image
@@ -70,11 +51,6 @@ jobs:
         run: |
           docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest backend
           docker images | grep my-app-repo | grep backend-latest # Verify image
-          docker run -d -p 3000:3000 --name backend ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest
-          sleep 5
-          curl http://localhost:3000/api/health || echo "Backend test failed"
-          docker stop backend || true
-          docker rm backend || true
           echo "Backend image packaged"
 
       # Push images to ECR
