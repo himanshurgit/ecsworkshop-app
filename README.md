@@ -5,14 +5,14 @@ Set up the ecsworkshop-app repository with a working HTML/CSS/JS frontend (serve
 
 Directory Structure:
 ecsworkshop-app/
-├── frontend/
-│   ├── index.html
-│   ├── style.css
-│   ├── script.js
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   ├── .dockerignore
-├── backend/
+├── frontend/       |
+│   ├── index.html  |
+│   ├── style.css   |
+│   ├── script.js   |
+│   ├── Dockerfile  |
+│   ├── nginx.conf  |
+│   ├── .dockerignore |
+├── backend/          |
 │   ├── index.js
 │   ├── package.json
 │   ├── Dockerfile
