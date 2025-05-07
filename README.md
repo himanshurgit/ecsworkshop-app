@@ -3,7 +3,7 @@
 Objective: 
 Set up the ecsworkshop-app repository with a working HTML/CSS/JS frontend (served by Nginx) and a Node.js/Express backend, packaged as Docker images (frontend-latest, backend-latest) for deployment to AWS ECS. The frontend serves a static page and proxies /api/ requests to the backend’s /api/health endpoint. The setup includes a GitHub Actions workflow to build, test, and push images to the single ECR repository (my-app-repo) in ecsworkshop-infra.
 
-Directory Structure:
+```Directory Structure
 ecsworkshop-app/
 ├── frontend/       |
 │   ├── index.html  |
@@ -13,13 +13,16 @@ ecsworkshop-app/
 │   ├── nginx.conf  |
 │   ├── .dockerignore |
 ├── backend/          |
-│   ├── index.js
+│   ├── index.js      
 │   ├── package.json
 │   ├── Dockerfile
 │   ├── .dockerignore
 ├── .github/
 │   ├── workflows/
 │       ├── deploy.yml
+
+
+
 
 App Components:
 
