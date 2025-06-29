@@ -10,7 +10,7 @@ on:
 jobs:
   deploy-app:
     # Runner: Ubuntu for Docker compatibility
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest 
     steps:
       # Checkout code from repository
       - name: Checkout code
