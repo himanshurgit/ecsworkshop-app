@@ -1,195 +1,270 @@
-# ecsworkshop-app
+# ECS Workshop Application
 
-Objective: 
-Set up the ecsworkshop-app repository with a working HTML/CSS/JS frontend (served by Nginx) and a Node.js/Express backend, packaged as Docker images (frontend-latest, backend-latest) for deployment to AWS ECS. The frontend serves a static page and proxies /api/ requests to the backend’s /api/health endpoint. The setup includes a GitHub Actions workflow to build, test, and push images to the single ECR repository (my-app-repo) in ecsworkshop-infra.
+A containerized full-stack web application demonstrating AWS ECS deployment with a React-style frontend and Node.js backend. This application showcases modern containerization practices and automated CI/CD deployment to Amazon Elastic Container Service (ECS).
 
-```Directory Structure
+
+## 📚 Learning Resources
+
+This project is part of the [**Learn Amazon ECS over a Weekend**](https://shorturl.at/y8ys4) course, which provides comprehensive hands-on experience with containerized applications on AWS.
+
+
+## 🏗️ Architecture Overview
+
+This application consists of two main components:
+
+- **Frontend**: Static HTML/CSS/JavaScript served by Nginx with API proxy configuration
+- **Backend**: Node.js/Express REST API with health check endpoints
+- **CI/CD**: GitHub Actions workflow for automated Docker image building and ECS deployment
+
+```
 ecsworkshop-app/
-├── frontend/       |
-│   ├── index.html  |
-│   ├── style.css   |
-│   ├── script.js   |
-│   ├── Dockerfile  |
-│   ├── nginx.conf  |
-│   ├── .dockerignore |
-├── backend/          |
-│   ├── index.js      
-│   ├── package.json
-│   ├── Dockerfile
-│   ├── .dockerignore
-├── .github/
-│   ├── workflows/
-│       ├── deploy.yml
+├── frontend/
+│   ├── index.html          # Main application page
+│   ├── style.css           # Application styling
+│   ├── script.js           # Frontend JavaScript logic
+│   ├── nginx.conf          # Nginx proxy configuration
+│   ├── Dockerfile          # Frontend container definition
+│   └── .dockerignore       # Docker build exclusions
+├── backend/
+│   ├── index.js            # Express server with API endpoints
+│   ├── package.json        # Node.js dependencies
+│   ├── Dockerfile          # Backend container definition
+│   └── .dockerignore       # Docker build exclusions
+└── .github/
+    └── workflows/
+        └── deploy.yml      # CI/CD pipeline configuration
+```
+
+## 🚀 Application Components
+
+### Frontend Service
+- **Technology**: Nginx serving static assets
+- **Port**: 80 (containerized), 8080 (local testing)
+- **Features**: 
+  - Responsive web interface
+  - API proxy to backend service
+  - ECS service discovery integration
+
+### Backend Service  
+- **Technology**: Node.js with Express framework
+- **Port**: 3000
+- **Endpoints**:
+  - `GET /api/health` - Health check endpoint returning service status
+- **Features**:
+  - CORS enabled for cross-origin requests
+  - JSON API responses
+  - Container health monitoring
+
+### CI/CD Pipeline
+- **Trigger**: Push to main branch
+- **Actions**:
+  - Build Docker images for frontend and backend
+  - Push images to Amazon ECR
+  - Update ECS services with new deployments
+- **Registry**: Single ECR repository with tagged images (`frontend-latest`, `backend-latest`)
+
+## 📋 Prerequisites
+
+### Local Development Environment
+- **Docker**: Container runtime and image building
+- **Node.js v18+**: Backend development and testing
+- **AWS CLI**: AWS service interaction and authentication
+- **Git**: Version control and repository management
+
+### AWS Infrastructure Requirements
+- ECS Cluster with network and application stacks deployed
+- ECR repository (`my-app-repo`) for container images
+- ECS services (`frontend-service`, `backend-service`) configured
+- Proper IAM roles and security groups
+
+### GitHub Configuration
+Required repository secrets:
+- `AWS_ACCOUNT_ID`: Your AWS account identifier
+- `AWS_ACCESS_KEY_ID`: AWS access credentials
+- `AWS_SECRET_ACCESS_KEY`: AWS secret credentials
+
+## 🛠️ Installation & Setup
+
+### 1. Install Required Tools
+
+**macOS (using Homebrew):**
+```bash
+brew install docker node aws-cli git
+```
+
+**Ubuntu/Debian:**
+```bash
+# Docker
+sudo apt-get update && sudo apt-get install -y docker.io
+sudo systemctl start docker && sudo systemctl enable docker
+
+# Node.js
+sudo apt-get install -y nodejs npm
+
+# AWS CLI
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+unzip awscliv2.zip && sudo ./aws/install
+
+# Git
+sudo apt-get install -y git
+```
+
+### 2. Configure AWS CLI
+```bash
+aws configure
+# Enter your AWS Access Key ID, Secret Access Key, and set region to us-east-1
+```
+
+### 3. Verify Installation
+```bash
+docker --version
+node --version
+aws --version
+git --version
+```
+
+## 🧪 Local Development & Testing
+
+### Quick Start
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd ecsworkshop-app
+   ```
+
+2. **Install backend dependencies**
+   ```bash
+   cd backend
+   npm install
+   cd ..
+   ```
+
+### Local Testing Process
+
+To test the application locally before ECS deployment:
+
+1. **Prepare frontend for local testing**
+   ```bash
+   cd frontend
+   cp nginx.conf nginx.conf.local
+   ```
+
+2. **Update nginx.conf.local for local backend connection**
+   ```nginx
+   # Proxy API requests to backend
+   location /api/ {
+       # proxy_pass http://backend:3000; # ECS resolves backend service
+       proxy_pass http://host.docker.internal:3000; # Local backend
+   }
+   ```
+
+3. **Update frontend Dockerfile temporarily**
+   ```dockerfile
+   # Copy Nginx config
+   COPY nginx.conf.local /etc/nginx/conf.d/default.conf
+   ```
+
+4. **Build and run frontend container**
+   ```bash
+   docker build -t test-frontend .
+   docker run -d -p 8080:80 --name frontend test-frontend
+   ```
+
+5. **Test frontend (backend will show "Error" status initially)**
+   ```bash
+   curl http://localhost:8080
+   # Or visit http://localhost:8080 in your browser
+   ```
+
+6. **Build and run backend container**
+   ```bash
+   cd ../backend
+   docker build -t test-backend .
+   docker run -d -p 3000:3000 --name backend test-backend
+   ```
+
+7. **Verify backend health endpoint**
+   ```bash
+   curl http://localhost:3000/api/health
+   # Should return: {"status":"ok"}
+   ```
+
+8. **Clean up after testing**
+   ```bash
+   # Stop containers
+   docker stop frontend backend
+   docker rm frontend backend
+   
+   # Revert configuration files
+   cd ../frontend
+   mv nginx.conf.local nginx.conf
+   # Restore original nginx.conf content and Dockerfile
+   ```
+
+## 🚢 Deployment
+
+### Automated Deployment
+The application automatically deploys to AWS ECS when code is pushed to the main branch. The GitHub Actions workflow:
+
+1. Builds Docker images for both frontend and backend
+2. Pushes images to Amazon ECR with appropriate tags
+3. Updates ECS services to use the new images
+4. Scales services to desired capacity (1 task each)
+
+### Manual Deployment
+For manual deployment or troubleshooting:
+
+```bash
+# Build images
+docker build -t my-app-repo:frontend-latest frontend/
+docker build -t my-app-repo:backend-latest backend/
+
+# Tag for ECR
+docker tag my-app-repo:frontend-latest $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest
+docker tag my-app-repo:backend-latest $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest
+
+# Push to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+docker push $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:frontend-latest
+docker push $AWS_ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/my-app-repo:backend-latest
+
+# Update ECS services
+aws ecs update-service --cluster my-ecs-cluster --service frontend-service --desired-count 1 --region us-east-1
+aws ecs update-service --cluster my-ecs-cluster --service backend-service --desired-count 1 --region us-east-1
+```
+
+## 🔧 Troubleshooting
+
+### Common Issues
+- **Container build failures**: Check Dockerfile syntax and ensure all required files are present
+- **ECS service not updating**: Verify ECR repository permissions and ECS task definitions
+- **Frontend can't reach backend**: Confirm ECS service discovery configuration and security groups
+- **GitHub Actions failing**: Check repository secrets and AWS permissions
+
+### Monitoring
+- **ECS Console**: Monitor service health and task status
+- **CloudWatch Logs**: View application logs for debugging
+- **ECR Console**: Verify image pushes and repository contents
 
 
+### Infrastructure Setup
+To deploy the complete ECS infrastructure stack required for this application, follow the setup instructions in the companion repository: https://github.com/himanshurgit/ecsworkshop-infra.git
 
+The infrastructure repository contains:
+- CloudFormation templates for ECS cluster setup
+- Network configuration (VPC, subnets, security groups)
+- ECR repository creation
+- ECS service and task definitions
+- Load balancer configuration
 
-App Components:
+## 🤝 Contributing
 
-1. Frontend: Nginx serves static HTML/CSS/JS files, proxies /api/ to backend:3000 (resolved by ECS service discovery).
-2. Backend: Node.js/Express server with CORS, serving /api/health on port 3000.
-3. Workflow: GitHub Actions workflow (deploy.yml) to build, test, and push Docker images to ECR, then update ECS services to DesiredCount: 1.
-4. ECR: Single repository (my-app-repo) in ecsworkshop-infra, with tags frontend-latest and backend-latest.
-5. ECS: Assumes ecs-network-stack and ecs-app-stack are deployed in ecsworkshop-infra, with frontend-service and backend-service initially at DesiredCount: 0.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Prerequisites:
+## 📄 License
 
-Local Environment:
-1. Docker installed and running.
-2. AWS CLI configured with credentials for us-east-1.
-3. Git installed.
-
-AWS Setup:
-1. ecsworkshop-infra repository deployed with ecs-network-stack and ecs-app-stack (via templates/network-stack.cf.yml and ecs-stack.cf.yml).
-2. ECR repository my-app-repo created in AWS account 140955125134.
-3. GitHub secrets set in ecsworkshop-app:
-    AWS_ACCOUNT_ID:
-    AWS_ACCESS_KEY_ID.
-    AWS_SECRET_ACCESS_KEY.
-
-Git Setup:
-1. Create a repo in github with name ecsworkshop-app
-2. Clone the repo into the local system
-
-
-Below is a list of all libraries and tools required locally to run the `ecsworkshop-app` plan, including their installation commands and purposes. This focuses solely on the dependencies needed for the frontend and backend, as well as tools for building and testing the application locally. No application code is included, as requested.
-
----
-
-### Libraries and Tools
-
-1. **Docker**
-   - **Purpose**: Builds, runs, and manages Docker containers for frontend (Nginx) and backend (Node.js) locally.
-   - **Installation Command**:
-     ```bash
-     # On macOS (using Homebrew)
-     brew install docker
-     # On Ubuntu
-     sudo apt-get update
-     sudo apt-get install -y docker.io
-     sudo systemctl start docker
-     sudo systemctl enable docker
-     ```
-   - **Note**: Ensure Docker Desktop is running on macOS/Windows, or the Docker daemon is active on Linux.
-
-2. **Node.js (includes npm)**
-   - **Purpose**: Required for backend development and testing, to install dependencies (`express`, `cors`) and run the backend locally outside Docker (optional).
-   - **Installation Command**:
-     ```bash
-     # On macOS (using Homebrew)
-     brew install node
-     # On Ubuntu
-     sudo apt-get update
-     sudo apt-get install -y nodejs npm
-     ```
-   - **Note**: Use Node.js v18 to match the `node:18-alpine` Docker image.
-
-3. **express**
-   - **Purpose**: Backend web framework for Node.js, used to create the REST API (`/api/health`) in `backend/index.js`.
-   - **Installation Command**:
-     ```bash
-     cd ~/ecs-workshop/ecsworkshop-app/backend
-     npm install express@^4.18.2
-     ```
-
-4. **cors**
-   - **Purpose**: Middleware for Express to enable Cross-Origin Resource Sharing, allowing the frontend to make requests to the backend.
-   - **Installation Command**:
-     ```bash
-     cd ~/ecs-workshop/ecsworkshop-app/backend
-     npm install cors@^2.8.5
-     ```
-
-5. **AWS CLI**
-   - **Purpose**: Interacts with AWS services (ECR, ECS, CloudFormation) to verify infrastructure and deployment.
-   - **Installation Command**:
-     ```bash
-     # On macOS (using Homebrew)
-     brew install awscli
-     # On Ubuntu
-     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-     unzip awscliv2.zip
-     sudo ./aws/install
-     ```
-   - **Note**: Configure with `aws configure` using your AWS credentials.
-
-6. **Git**
-   - **Purpose**: Version control to clone the repository and manage code changes.
-   - **Installation Command**:
-     ```bash
-     # On macOS (using Homebrew)
-     brew install git
-     # On Ubuntu
-     sudo apt-get update
-     sudo apt-get install -y git
-     ```
-
-7. **yamllint** (Optional)
-   - **Purpose**: Validates the YAML syntax of `deploy.yml` to ensure the GitHub Actions workflow is correct.
-   - **Installation Command**:
-     ```bash
-     # On macOS (using Homebrew)
-     brew install yamllint
-     # On Ubuntu
-     sudo apt-get update
-     sudo apt-get install -y yamllint
-     ```
-
----
-
-### Notes
-- **Backend Dependencies**: `express` and `cors` are installed in the Docker image via `backend/Dockerfile` (`RUN npm install`), but local installation is needed only for non-Docker testing or development.
-- **No Frontend Libraries**: The frontend uses static HTML/CSS/JS served by Nginx, requiring no additional libraries beyond Docker.
-- **Verification**: Ensure all tools are installed by running:
-  ```bash
-  docker --version
-  node --version
-  npm --version
-  aws --version
-  git --version
-  yamllint --version
-  ```
-- **Context**: These libraries/tools support the `ecsworkshop-app` plan for local testing and preparation for ECS deployment, as validated in our prior discussions (e.g., April 19, 2025).
-
-Let me know if you need clarification or additional tools for your documentation, and confirm when you’re ready for the deployment steps!
-
-
-
-
-## Testing frontend and Backend locally:
-
-In Order to Test locally, follow below Steps:
-1. Rename nginx.conf file in frontend directory to nginx.conf.local
-2. Update below code for backend within nginx.conf.local file to locate backend service locally.
-  # Proxy API requests to backend
-    location /api/ {
-    #   proxy_pass http://backend:3000; # ECS resolves backend service
-        proxy_pass http://host.docker.internal:3000; # Local backend
-3. Update the nginx file name in Dockerfiile within frontend directory-
-    # Copy Nginx config
-    COPY nginx.conf.local /etc/nginx/conf.d/default.conf
-4. Run following command to build the image and container for frontend-
-    >docker build -t test-frontend .
-    >docker run -d -p 8080:80 --name frontend test-frontend
-5. Test the frontend using curl or paste the url in browser. Expected result is html page with backend status "Error" since backend is not configured currently.
-    >curl http://localhost:8080
-6. Run following command to build the image and container for backend-
-    > docker build -t test-backend .
-    >docker run -d -p 3000:3000 --name backend test-backend
-7. Test the backend using curl or check the frontend url, backend status should be 'OK'.
-    > curl http://localhost:3000/api/health
-8. Stop the container in the docker desktop
-9. Revert the nginx.conf.local name back to nginx.conf
-10. Revert the url in nginx.conf file
-     # Proxy API requests to backend
-    location /api/ {
-        proxy_pass http://backend:3000; # ECS resolves backend service
-     #   proxy_pass http://host.docker.internal:3000; # Local backend
-11. Update the dockerfile in frontend directory-
-     # Copy Nginx config
-    COPY nginx.conf /etc/nginx/conf.d/default.conf
-12. Now you should be good to deploy the code to ECS.
-
-
-
-
+This project is created for educational purposes as part of the ECS Workshop curriculum.
