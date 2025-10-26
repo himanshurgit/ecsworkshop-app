@@ -1,0 +1,426 @@
+# ECS Workshop Application - System Requirements
+
+## Overview
+This file lists all dependencies and tools required to develop, test, and deploy the ECS Workshop Application locally and to AWS ECS.
+
+## System Requirements
+
+### Operating System Support
+- **macOS**: 10.15 (Catalina) or later, including Apple Silicon (M1/M2)
+- **Windows**: Windows 10 (version 2004+) or Windows 11 with WSL2 enabled
+
+## Core Dependencies
+
+### 1. Docker Desktop
+**Purpose**: Container runtime for building and running application containers
+**Version**: 4.0.0 or later (includes Docker Engine 20.10.0+)
+
+**macOS Installation**:
+```bash
+# Option 1: Homebrew (Recommended)
+brew install --cask docker
+
+# Option 2: Direct Download
+# Visit https://docs.docker.com/desktop/mac/install/
+# Download Docker.dmg and install
+```
+
+**Windows Installation**:
+```powershell
+# Prerequisites: Enable WSL2 and Hyper-V
+# Run in PowerShell as Administrator:
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart
+
+# Download and install Docker Desktop from:
+# https://docs.docker.com/desktop/windows/install/
+
+# Alternative: Using Chocolatey
+choco install docker-desktop
+
+# Alternative: Using winget
+winget install Docker.DockerDesktop
+```
+
+**Post-Installation Setup**:
+- **macOS/Windows**: Start Docker Desktop application
+- **All platforms**: Allocate at least 4GB RAM to Docker in settings
+
+**Verification**: 
+```bash
+docker --version
+docker run --rm hello-world
+docker-compose --version  # Should show v2.x.x
+```
+
+### 2. Node.js & npm
+**Purpose**: Backend development, dependency management, and local testing
+**Version**: Node.js 18.x or later, npm 9.x or later
+
+**macOS Installation**:
+```bash
+# Option 1: Homebrew (Recommended)
+brew install node
+
+# Option 2: Node Version Manager (for multiple versions)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+nvm install 18
+nvm use 18
+
+# Option 3: Direct download from https://nodejs.org/
+```
+
+**Windows Installation**:
+```powershell
+# Option 1: Direct download (Recommended)
+# Visit https://nodejs.org/ and download Windows Installer (.msi)
+
+# Option 2: Chocolatey
+choco install nodejs
+
+# Option 3: winget
+winget install OpenJS.NodeJS
+
+# Option 4: Node Version Manager for Windows
+# Install nvm-windows from: https://github.com/coreybutler/nvm-windows
+nvm install 18.17.0
+nvm use 18.17.0
+```
+
+
+
+**Verification**: 
+```bash
+node --version    # Should show v18.x.x or later
+npm --version     # Should show 9.x.x or later
+```
+
+### 3. AWS CLI
+**Purpose**: AWS service interaction, ECR authentication, ECS deployment
+**Version**: 2.10.0 or later
+
+**macOS Installation**:
+```bash
+# Option 1: Homebrew (Recommended)
+brew install awscli
+
+# Option 2: Official installer
+curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
+sudo installer -pkg AWSCLIV2.pkg -target /
+
+# For Apple Silicon Macs, use:
+# curl "https://awscli.amazonaws.com/AWSCLIV2-arm64.pkg" -o "AWSCLIV2.pkg"
+```
+
+**Windows Installation**:
+```powershell
+# Option 1: MSI Installer (Recommended)
+# Download from: https://awscli.amazonaws.com/AWSCLIV2.msi
+# Run the installer as Administrator
+
+# Option 2: Chocolatey
+choco install awscli
+
+# Option 3: winget
+winget install Amazon.AWSCLI
+
+# Option 4: PowerShell (for current user only)
+msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi /quiet
+```
+
+
+
+**Configuration**: 
+```bash
+aws configure
+# Enter: Access Key ID, Secret Access Key, Region (us-east-1), Output format (json)
+```
+
+**Verification**: 
+```bash
+aws --version
+aws sts get-caller-identity  # Test credentials
+```
+
+### 4. Git
+**Purpose**: Version control and repository management
+**Version**: 2.30 or later
+
+**macOS Installation**:
+```bash
+# Option 1: Homebrew (Recommended)
+brew install git
+
+# Option 2: Xcode Command Line Tools
+xcode-select --install
+
+# Git is also included with Xcode
+```
+
+**Windows Installation**:
+```powershell
+# Option 1: Git for Windows (Recommended)
+# Download from: https://git-scm.com/download/win
+# Includes Git Bash, Git GUI, and shell integration
+
+# Option 2: Chocolatey
+choco install git
+
+# Option 3: winget
+winget install Git.Git
+
+# Option 4: GitHub Desktop (includes Git)
+winget install GitHub.GitHubDesktop
+```
+
+
+
+**Post-Installation Configuration**:
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+git config --global init.defaultBranch main
+```
+
+**Verification**: 
+```bash
+git --version
+git config --list  # Check configuration
+```
+
+## Application Dependencies
+
+### Backend Dependencies (Node.js)
+These are automatically installed via `npm install` in the backend directory:
+
+- **express**: ^4.18.2 - Web framework for Node.js
+- **cors**: ^2.8.5 - Cross-Origin Resource Sharing middleware
+
+### Container Dependencies
+These are handled automatically by Docker images:
+
+- **nginx:alpine** - Web server for frontend static files
+- **node:18-alpine** - Node.js runtime for backend
+
+## AWS Infrastructure Requirements
+
+### Required AWS Services
+- **Amazon ECS** - Container orchestration service
+- **Amazon ECR** - Container registry for Docker images
+- **Amazon VPC** - Virtual Private Cloud for networking
+- **Application Load Balancer** - Traffic distribution
+- **CloudWatch** - Logging and monitoring
+
+### AWS Permissions Required
+Your AWS credentials must have permissions for:
+- ECR: GetAuthorizationToken, BatchCheckLayerAvailability, GetDownloadUrlForLayer, BatchGetImage, PutImage
+- ECS: UpdateService, DescribeServices, DescribeTasks, DescribeClusters
+- CloudWatch: CreateLogGroup, CreateLogStream, PutLogEvents
+
+## GitHub Configuration
+
+### Repository Secrets
+Configure these secrets in your GitHub repository settings:
+- `AWS_ACCOUNT_ID` - Your 12-digit AWS account ID
+- `AWS_ACCESS_KEY_ID` - AWS access key for deployment
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key for deployment
+
+## Optional Development Tools
+
+### Code Quality & Linting
+**macOS**:
+```bash
+brew install yamllint
+npm install -g jsonlint
+```
+
+**Windows**:
+```powershell
+# Using pip (if Python is installed)
+pip install yamllint
+
+# Using npm for JSON validation
+npm install -g jsonlint
+
+# Alternative: Use VS Code extensions
+# - YAML extension by Red Hat
+# - JSON Tools extension
+```
+
+
+
+### Monitoring & Debugging
+```bash
+# Container inspection
+docker stats
+docker logs <container-name>
+
+# AWS resource monitoring
+aws ecs describe-services --cluster my-ecs-cluster --services frontend-service backend-service
+aws logs describe-log-groups
+```
+
+## Installation Verification Scripts
+
+### For macOS (Bash)
+Save as `check-dependencies.sh` and run with `bash check-dependencies.sh`:
+
+```bash
+#!/bin/bash
+echo "=== ECS Workshop Dependencies Check ==="
+
+# Check Docker
+if command -v docker &> /dev/null; then
+    echo "✓ Docker: $(docker --version)"
+    docker run --rm hello-world &> /dev/null && echo "✓ Docker daemon running" || echo "✗ Docker daemon not running"
+else
+    echo "✗ Docker not installed"
+fi
+
+# Check Node.js
+if command -v node &> /dev/null; then
+    echo "✓ Node.js: $(node --version)"
+    echo "✓ npm: $(npm --version)"
+else
+    echo "✗ Node.js not installed"
+fi
+
+# Check AWS CLI
+if command -v aws &> /dev/null; then
+    echo "✓ AWS CLI: $(aws --version)"
+    aws sts get-caller-identity &> /dev/null && echo "✓ AWS credentials configured" || echo "✗ AWS credentials not configured"
+else
+    echo "✗ AWS CLI not installed"
+fi
+
+# Check Git
+if command -v git &> /dev/null; then
+    echo "✓ Git: $(git --version)"
+else
+    echo "✗ Git not installed"
+fi
+
+echo "=== Dependency Check Complete ==="
+```
+
+### For Windows (PowerShell)
+Save as `check-dependencies.ps1` and run with `powershell -ExecutionPolicy Bypass -File check-dependencies.ps1`:
+
+```powershell
+Write-Host "=== ECS Workshop Dependencies Check ===" -ForegroundColor Cyan
+
+# Check Docker
+try {
+    $dockerVersion = docker --version 2>$null
+    if ($dockerVersion) {
+        Write-Host "✓ Docker: $dockerVersion" -ForegroundColor Green
+        docker run --rm hello-world 2>$null >$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ Docker daemon running" -ForegroundColor Green
+        } else {
+            Write-Host "✗ Docker daemon not running" -ForegroundColor Red
+        }
+    }
+} catch {
+    Write-Host "✗ Docker not installed" -ForegroundColor Red
+}
+
+# Check Node.js
+try {
+    $nodeVersion = node --version 2>$null
+    $npmVersion = npm --version 2>$null
+    if ($nodeVersion -and $npmVersion) {
+        Write-Host "✓ Node.js: $nodeVersion" -ForegroundColor Green
+        Write-Host "✓ npm: $npmVersion" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "✗ Node.js not installed" -ForegroundColor Red
+}
+
+# Check AWS CLI
+try {
+    $awsVersion = aws --version 2>$null
+    if ($awsVersion) {
+        Write-Host "✓ AWS CLI: $awsVersion" -ForegroundColor Green
+        aws sts get-caller-identity 2>$null >$null
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "✓ AWS credentials configured" -ForegroundColor Green
+        } else {
+            Write-Host "✗ AWS credentials not configured" -ForegroundColor Red
+        }
+    }
+} catch {
+    Write-Host "✗ AWS CLI not installed" -ForegroundColor Red
+}
+
+# Check Git
+try {
+    $gitVersion = git --version 2>$null
+    if ($gitVersion) {
+        Write-Host "✓ Git: $gitVersion" -ForegroundColor Green
+    }
+} catch {
+    Write-Host "✗ Git not installed" -ForegroundColor Red
+}
+
+Write-Host "=== Dependency Check Complete ===" -ForegroundColor Cyan
+```
+
+## Troubleshooting Common Issues
+
+### Docker Issues
+**macOS**:
+- **Docker Desktop won't start**: Check system requirements, restart Docker Desktop
+- **Permission denied**: Ensure Docker Desktop is running and you're in the docker group
+
+**Windows**:
+- **WSL2 not enabled**: Run `wsl --install` in PowerShell as Administrator
+- **Hyper-V conflicts**: Disable other virtualization software (VirtualBox, VMware)
+- **Docker Desktop startup issues**: Check Windows features, restart as Administrator
+
+
+
+### AWS CLI Issues
+**macOS/Windows**:
+- **Credentials not found**: Run `aws configure` with your access keys
+- **Region not set**: Ensure region is set to `us-east-1` in AWS config
+- **SSL certificate errors**: Update certificates or use `aws configure set ca_bundle /path/to/cacert.pem`
+
+**Windows Specific**:
+- **Path issues**: Restart PowerShell/Command Prompt after installation
+- **Execution policy**: Run `Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser`
+
+### Node.js Issues
+**macOS**:
+- **Version conflicts**: Use nvm: `brew install nvm` then `nvm install 18`
+- **Permission errors**: Use `npm config set prefix ~/.npm-global`
+
+**Windows**:
+- **Path not updated**: Restart Command Prompt/PowerShell after installation
+- **Permission errors**: Run as Administrator or use `npm config set prefix %APPDATA%\npm`
+- **Version conflicts**: Use nvm-windows for version management
+
+
+
+### Git Issues
+**Windows**:
+- **Line ending issues**: Configure `git config --global core.autocrlf true`
+- **Path issues**: Ensure Git is in system PATH during installation
+
+**macOS/Windows**:
+- **Authentication issues**: Use personal access tokens instead of passwords
+- **SSH key setup**: Generate SSH keys: `ssh-keygen -t ed25519 -C "your_email@example.com"`
+
+## Minimum System Resources
+
+- **RAM**: 4GB minimum, 8GB recommended
+- **Storage**: 10GB free space for Docker images
+- **Network**: Stable internet connection for AWS services and Docker Hub
+
+## Support
+
+For issues with dependencies or setup:
+1. Check the troubleshooting section above
+2. Verify all versions meet minimum requirements
+3. Consult the main README.md for detailed setup instructions
+4. Review AWS documentation for service-specific requirements
